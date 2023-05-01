@@ -28,7 +28,7 @@ async function websocket(url) {
   });
 }
 onMounted(async () => {
-  const websocket = new WebSocket(`ws://${window.location.host}/api/websocket`);
+  const websocket = new WebSocket(`wss://${window.location.host}/api/websocket`);
   websocket.addEventListener('message', event => {
     console.log('Message received from server');
     console.log(event.data);
