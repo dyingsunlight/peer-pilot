@@ -1,0 +1,22 @@
+{
+  "name": "peer-pilot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:functions": "npx wrangler pages dev ./ --r2 peerPilotR2 peer-pilot",
+    "generate": "nuxt generate"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20230404.0",
+    "nuxt": "^3.4.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4",
+    "vue": "^3.2.47",
+    "vue-router": "^4.1.6",
+    "wrangler": "^2.17.0"
+  }
+}
