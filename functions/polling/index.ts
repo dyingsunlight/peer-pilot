@@ -14,7 +14,11 @@ interface PollingResponse {
   }[]
 }
 
-export const onRequestGet = async (ctx: EventContext<any, any,  Record<string, unknown>>) => {
+interface Env {
+  peerPilotR2: R2Bucket
+}
+
+export const onRequestGet = async (ctx: EventContext<Env, any,  Record<string, unknown>>) => {
   const { request, env } = ctx
   const url = new URL(request.url)
   const roomId = url.searchParams.get('roomId')
@@ -27,7 +31,8 @@ export const onRequestGet = async (ctx: EventContext<any, any,  Record<string, u
     })
   }
 
-  const r2 = env.peerPilotR2 as R2Bucket
+  const r2 = env.peerPilotR2
+  console.log("env.peerPilotR2", env.peerPilotR2)
   const clientInfo = await r2.head(toClientsKey(roomId, clientId))
 
   if (clientInfo && clientInfo.customMetadata.secret !== secret) {
@@ -69,7 +74,7 @@ interface PollingRequestBody {
   }[]
 }
 
-export const onRequestPost = async (ctx: EventContext<any, any,  Record<string, unknown>>) => {
+export const onRequestPost = async (ctx: EventContext<Env, any,  Record<string, unknown>>) => {
   const { request, env } = ctx
   const url = new URL(request.url)
   const roomId = url.searchParams.get('roomId')
@@ -82,7 +87,7 @@ export const onRequestPost = async (ctx: EventContext<any, any,  Record<string, 
     })
   }
 
-  const r2 = env.peerPilotR2 as R2Bucket
+  const r2 = env.peerPilotR2
 
   const clientInfo = await r2.head(toClientsKey(roomId, clientId))
 
