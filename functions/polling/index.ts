@@ -31,12 +31,6 @@ export const onRequestGet = async (ctx: EventContext<Env, any,  Record<string, u
     })
   }
 
-  let second = 0
-  while (true) {
-    console.log(`long Polling test ... ${second}s`)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    second++
-  }
   const r2 = env.peerPilotR2
 
   const clientInfo = await r2.head(toClientsKey(roomId, clientId))
