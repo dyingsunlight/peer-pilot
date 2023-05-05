@@ -3,7 +3,6 @@ import {ref} from 'vue'
 import {CloudflareSignalingClient} from "./cloudflare-signaling-client"
 import { useRuntimeConfig } from "nuxt/app"
 import { userTransfer } from "./user-transfer";
-console.log("useRuntimeConfig().mode", useRuntimeConfig().public.mode)
 let signalingClient: CloudflareSignalingClient|undefined
 
 const clientId = Math.random().toString(36).slice(2)
@@ -29,7 +28,7 @@ const start = async () => {
     clientSecret,
     transferManager: transferManager
   })
-  await signalingClient.connect(isDevelopmentMode ? 'ws://localhost:8788/api/websocket' : 'wss://${window.location.host}/api/websocket')
+  await signalingClient.connect(isDevelopmentMode ? 'ws://localhost:8788/api/websocket' : `wss://${window.location.host}/api/websocket`)
   await signalingClient.updatePeerConnections()
   isConnected.value = true
 }

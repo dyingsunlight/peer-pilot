@@ -48,10 +48,7 @@ export class CloudflareSignalingClient extends Emitter {
     this.#websocket?.removeEventListener('close', this.#bindDisconnectedHandler)
     this.#websocket?.close()
     this.#websocket = undefined
-    // ws://localhost:8788/api/websocket
-    // wss://${window.location.host}/api/websocket
     const websocket = new WebSocket(`${endpoint}?roomId=${this.roomId}&clientId=${this.clientId}&clientSecret=${this.clientSecret}`)
-    // const websocket = new WebSocket(`wss://${window.location.host}/api/websocket?roomId=${this.roomId}&clientId=${this.clientId}&clientSecret=${this.clientSecret}`)
     websocket.addEventListener('message', this.#bindMessageHandler)
     websocket.addEventListener('close', this.#bindMessageHandler)
     websocket.binaryType = 'arraybuffer'
