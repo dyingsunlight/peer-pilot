@@ -1,46 +1,75 @@
 <script lang="ts" setup>
-import { onMounted } from 'vue'
-async function websocket(url) {
-  // Make a fetch request including `Upgrade: websocket` header.
-  // The Workers Runtime will automatically handle other requirements
-  // of the WebSocket protocol, like the Sec-WebSocket-Key header.
-  let resp = await fetch(url, {
-    headers: {
-      Upgrade: 'websocket',
-    },
-  });
+import {ref} from 'vue'
+import {CloudflareSignalingClient} from "./cloudflare-signaling-client"
+import { useRuntimeConfig } from "nuxt/app"
+import { userTransfer } from "./user-transfer";
+console.log("useRuntimeConfig().mode", useRuntimeConfig().public.mode)
+let signalingClient: CloudflareSignalingClient|undefined
 
-  // If the WebSocket handshake completed successfully, then the
-  // response has a `webSocket` property.
-  let ws = resp.webSocket;
-  if (!ws) {
-    throw new Error("server didn't accept WebSocket");
+const clientId = Math.random().toString(36).slice(2)
+const clientSecret = Math.random().toString(36).slice(2)
+
+const roomId = ref("001")
+const isConnected = ref(false)
+const {
+  clients,
+  transferManager,
+  handleSendFile,
+} = userTransfer({ clientId })
+
+const start = async () => {
+  if (isConnected.value) {
+    return
   }
+  const isDevelopmentMode = useRuntimeConfig().mode === 'development'
 
-  // Call accept() to indicate that you'll be handling the socket here
-  // in JavaScript, as opposed to returning it on to a client.
-  ws.accept();
-
-  // Now you can send and receive messages like before.
-  ws.send('hello');
-  ws.addEventListener('message', msg => {
-    console.log(msg.data);
-  });
+  signalingClient = new CloudflareSignalingClient({
+    roomId: roomId.value,
+    clientId,
+    clientSecret,
+    transferManager: transferManager
+  })
+  await signalingClient.connect(isDevelopmentMode ? 'ws://localhost:8788/api/websocket' : 'wss://${window.location.host}/api/websocket')
+  await signalingClient.updatePeerConnections()
+  isConnected.value = true
 }
-onMounted(async () => {
-  const websocket = new WebSocket(`wss://${window.location.host}/api/websocket`);
-  websocket.addEventListener('message', event => {
-    console.log('Message received from server');
-    console.log(event.data);
-  });
-  setInterval(() => {
-    websocket.send("client meesage")
 
-  }, 2000)
-})
 </script>
 <template>
-  <div>
-    Hello World!
+  <div style="display: flex; flex-direction: column; max-width: 600px; width: 100%; margin: 20vh auto">
+    <div class="w-full">
+      <h3 class="text-xl">Room Number</h3>
+      <input type="text" placeholder="Type here" class="input input-bordered w-full" v-model="roomId" style="margin-top: 8px" />
+    </div>
+
+    <template v-if="isConnected">
+      <div class="divider">Peer client list</div>
+      <ul>
+        <li v-for="client in clients" :key="client.clientId" style="padding: 8px">
+        <span :style="{ opacity: client.status === 'connected' ? 1 : 0.2 }">
+          {{ client.name }} - {{ client.status }}
+        </span>
+          <button v-if="client.status === 'connected'" @click="handleSendFile(client.clientId)"  class="btn btn-sm" style="margin-left: 8px"> Send File </button>
+        </li>
+      </ul>
+      <p v-if="!clients.length" class="text-center text-accent-content/50">
+        Share the Room Number to others.
+      </p>
+      <div class="divider"></div>
+      <button class="btn btn-sm" @click="handleSendFile()" :disabled="!clients.length">
+        Send to everyone
+      </button>
+    </template>
+    <template v-else>
+      <div class="divider"></div>
+      <button class="btn" @click="start">
+        Connect
+      </button>
+    </template>
+
+
+
+
+
   </div>
 </template>

@@ -4,15 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "ts-node test/buffer.spec.ts",
     "dev:functions": "npx wrangler pages dev ./ --r2 peerPilotR2 peer-pilot --port 8788",
     "dev:nuxt": "nuxt dev",
-    "generate": "nuxt generate"
+    "generate": "MODE=production nuxt generate"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@cloudflare/workers-types": "^4.20230404.0",
+    "@nuxtjs/tailwindcss": "^6.6.7",
+    "@types/file-saver": "^2.0.5",
+    "@types/wicg-file-system-access": "^2020.9.6",
+    "daisyui": "^2.51.6",
+    "file-saver": "^2.0.5",
     "nuxt": "^3.4.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
