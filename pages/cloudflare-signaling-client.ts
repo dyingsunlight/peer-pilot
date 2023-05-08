@@ -1,7 +1,7 @@
 import {decode, encode, SocketEvents} from "../shared/event"
 import {parallelTasks} from "../shared/parallel-tasks"
 import {Emitter} from "../shared/emitter"
-import {TransferManager, ConnectionManagerEvents} from './transfer-manager'
+import {TransferManager, TransferManagerEvents} from './transfer-manager'
 import {presetIceServers} from "./ice-server"
 
 const textDecoder = new TextDecoder()
@@ -24,33 +24,37 @@ export class CloudflareSignalingClient extends Emitter {
   readonly clientSecret: string
   readonly transferManager: TransferManager
   readonly roomId: string
-
+  readonly endpoint: string
   constructor(args: {
+    endpoint: string
     roomId: string
     clientId: string
     clientSecret: string
     transferManager: TransferManager
   }) {
     super()
-    const { transferManager, roomId, clientSecret, clientId } = args
+    const { transferManager, roomId, clientSecret, clientId, endpoint } = args
     this.roomId = roomId
     this.clientId = clientId
     this.clientSecret = clientSecret
     this.transferManager = transferManager
+    this.endpoint = endpoint
   }
 
   #bindDisconnectedHandler = this.#onDisconnected.bind(this)
   async #onDisconnected() {
     this.dispatch(CloudflareSignalingClientEvents.ServerDisconnected)
+    await new Promise(resolve => setTimeout(resolve, 3000))
   }
-  async connect(endpoint: string) {
+  async connect() {
     this.#websocket?.removeEventListener('message', this.#bindMessageHandler)
     this.#websocket?.removeEventListener('close', this.#bindDisconnectedHandler)
     this.#websocket?.close()
     this.#websocket = undefined
-    const websocket = new WebSocket(`${endpoint}?roomId=${this.roomId}&clientId=${this.clientId}&clientSecret=${this.clientSecret}`)
+    const websocket = new WebSocket(`${this.endpoint}?roomId=${this.roomId}&clientId=${this.clientId}&clientSecret=${this.clientSecret}`)
     websocket.addEventListener('message', this.#bindMessageHandler)
-    websocket.addEventListener('close', this.#bindMessageHandler)
+    websocket.addEventListener('error', this.#bindDisconnectedHandler)
+    websocket.addEventListener('close', this.#bindDisconnectedHandler)
     websocket.binaryType = 'arraybuffer'
     await new Promise(resolve => websocket.addEventListener('open', resolve))
     this.dispatch(CloudflareSignalingClientEvents.ServerConnected)
@@ -61,10 +65,14 @@ export class CloudflareSignalingClient extends Emitter {
     const clients = await this.#invoke<PeerClient[]>(SocketEvents.ListClients)
     // const rtcPeerConnections = this.connectionManager.connections
     const tasks = clients
-      .filter(client => client.clientId !== this.clientId)
+      .filter(client =>
+        client.clientId !== this.clientId && !this.transferManager.connections[client.clientId])
       .map(client => {
         return async () => {
-          const rtcPeerConnection = new RTCPeerConnection({ iceServers: presetIceServers })
+          const rtcPeerConnection = new RTCPeerConnection({
+            iceServers: presetIceServers,
+            // iceTransportPolicy: 'relay',
+          })
           this.transferManager.addPeerConnection({
             peerClientId: client.clientId,
             peerConnection: rtcPeerConnection
@@ -120,7 +128,8 @@ export class CloudflareSignalingClient extends Emitter {
         item.payload = JSON.parse(item.payload)
         return item
       })
-      for (const message of messages) {
+      const sortedMessage = messages.sort((messageA, messageB) => messageA.index > messageB.index ? 1 : -1)
+      for (const message of sortedMessage) {
         if (message.payload.type === 'ice-candidate') {
           console.log('Received ice-candidate from ' + message.sourceClientId)
           try {
@@ -131,7 +140,10 @@ export class CloudflareSignalingClient extends Emitter {
         }
         if (message.payload.type === 'offer') {
           console.log('Received offer from ' + message.sourceClientId)
-          const connection = new RTCPeerConnection({ iceServers: presetIceServers })
+          const connection = new RTCPeerConnection({
+            iceServers: presetIceServers,
+            // iceTransportPolicy: 'relay',
+          })
           this.transferManager.addPeerConnection({
             peerClientId: message.sourceClientId,
             peerConnection: connection

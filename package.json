@@ -17,12 +17,14 @@
     "@types/file-saver": "^2.0.5",
     "@types/wicg-file-system-access": "^2020.9.6",
     "daisyui": "^2.51.6",
+    "detect-browser": "^5.3.0",
     "file-saver": "^2.0.5",
     "nuxt": "^3.4.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
     "vue": "^3.2.47",
     "vue-router": "^4.1.6",
+    "webrtc-adapter": "^8.2.2",
     "wrangler": "^2.17.0"
   }
 }

@@ -59,8 +59,6 @@ export const revertFromBuffer = (buffer: Uint8Array | ArrayBuffer) => {
 const Int32ByteLength = 4
 const Int16ByteLength = 2
 export const join = (buffers: (ArrayBuffer | Uint8Array)[]) => {
-  // 1 byte = 8bit
-  // Init32 = 4byte
   const metadataDataView = new DataView(new ArrayBuffer(buffers.length * 4))
   for (let i = 0; i < buffers.length; i++) {
     metadataDataView.setInt32(i * Int32ByteLength, buffers[i].byteLength)
@@ -85,7 +83,6 @@ export const split = (buffer: Uint8Array) => {
   const metadataBuffer = buffer.slice(2, 2 + metadataSizeIndicator)
   const metadataDataView = new DataView(metadataBuffer.buffer)
 
-  buffer.subarray()
   const output: Uint8Array[] = []
   let bodyByteLengthOffset = 0
   for (let i = 0; i < metadataBuffer.byteLength / Int32ByteLength; i++) {

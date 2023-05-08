@@ -46,8 +46,7 @@ export class DataChunk {
   static restore(buffers: ArrayBuffer[]) {
     let result = new Uint8Array(buffers.reduce((sum, buffer) => sum + buffer.byteLength - DataChannelPayloadBufferMetadataSize, 0))
     const items = buffers.map((buffer) => {
-      const dataView = new DataView(buffer)
-      const chunkPosition = dataView.getUint32(4)
+      const chunkPosition = new DataView(buffer.slice(4, 8)).getUint32(0)
       return {
         index: chunkPosition,
         buffer: buffer.slice(DataChannelPayloadBufferMetadataSize)

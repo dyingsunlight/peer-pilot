@@ -1,11 +1,11 @@
-import {ConnectManagerModule} from "./base"
+import {TransferManagerModule} from "./base"
 import {TransferManager} from "../transfer-manager"
 
 let invokeIndex = 0
 export enum FileManagerModuleEvents {
   File = 'File'
 }
-export class FileManagerModule extends ConnectManagerModule {
+export class FileTransferManagerModule extends TransferManagerModule {
 
   files: { file: File, id: string }[] = []
   constructor(connectionManager: TransferManager) {

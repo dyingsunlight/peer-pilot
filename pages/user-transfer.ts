@@ -1,7 +1,7 @@
 import {TransferManager} from "./transfer-manager";
-import {ProfileConnectionManagerModule, ProfileConnectionManagerModuleEvents} from "./modules/profile";
-import {MessageManagerModule} from "./modules/message";
-import {FileManagerModule, FileManagerModuleEvents} from "./modules/file";
+import {ProfileTransferManagerModule, ProfileConnectionManagerModuleEvents} from "./modules/profile";
+import {MessageTransferManagerModule} from "./modules/message";
+import {FileTransferManagerModule, FileManagerModuleEvents} from "./modules/file";
 import fileSaver from "file-saver"
 import { ref } from 'vue'
 
@@ -11,9 +11,9 @@ export const userTransfer = (args: { clientId: string; }) => {
   const clients = ref<{ name: string, clientId: string, status: string }[]>([])
 
   const transferManager = new TransferManager(clientId)
-  const profileModule = new ProfileConnectionManagerModule(transferManager)
-  const messageModule = new MessageManagerModule(transferManager)
-  const fileModule = new FileManagerModule(transferManager)
+  const profileModule = new ProfileTransferManagerModule(transferManager)
+  const messageModule = new MessageTransferManagerModule(transferManager)
+  const fileModule = new FileTransferManagerModule(transferManager)
 
   const updatePeerProfile = () => {
     clients.value = Object.values(profileModule.clients).map(client => ({
@@ -31,7 +31,7 @@ export const userTransfer = (args: { clientId: string; }) => {
     fileSaver.saveAs(new Blob([ file ]), filename)
   })
 
-  const handleSendFile = async (clientId?: string) => {
+  const handleSelectAndSendFile = async (clientId?: string) => {
     const handles = await showOpenFilePicker({
       multiple: true,
     })
@@ -43,12 +43,20 @@ export const userTransfer = (args: { clientId: string; }) => {
       })
     }
   }
+  const handleSendFile = async (file: File, clientId?: string) => {
+    const clientIds = clientId ? [clientId] : clients.value.map(client => client.clientId)
+    return fileModule.send({
+      file: file,
+      clientIds
+    })
+  }
   return {
     clients,
     transferManager,
     profileModule,
     messageModule,
     fileModule,
-    handleSendFile
+    handleSendFile,
+    handleSelectAndSendFile
   }
 }

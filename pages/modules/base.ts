@@ -1,4 +1,4 @@
-import {TransferManager, InvokeArgs, InvokeHandler, BroadcastArgs, BroadcastHandler} from "../transfer-manager";
+import {TransferManager, BroadcastArgs, BroadcastHandler} from "../transfer-manager";
 import { revertFromBuffer, convertToBuffer } from "../../shared/buffer-utils";
 import {Emitter} from "../../shared/emitter";
 
@@ -10,7 +10,7 @@ type ConnectManagerModuleInvokeHandler = (args: ConnectManagerModuleInvokeArgs &
 type ConnectManagerModuleBroadcastArgs = { event: string; data?: Transferable; clientIds?: string[] }
 type ConnectManagerModuleBroadcastHandler = (args: ConnectManagerModuleBroadcastArgs & { sourceClientId: string }) => any | Promise<void>
 
-export class ConnectManagerModule<E = string> extends Emitter<E> {
+export class TransferManagerModule<E = string> extends Emitter<E> {
   readonly namespace: string
   readonly connectionManager: TransferManager
   constructor(args: {

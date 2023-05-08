@@ -1,7 +1,7 @@
-import {ConnectManagerModule} from "./base"
+import {TransferManagerModule} from "./base"
 import {TransferManager} from "../transfer-manager"
 
-export class MessageManagerModule extends ConnectManagerModule {
+export class MessageTransferManagerModule extends TransferManagerModule {
 
   constructor(connectionManager: TransferManager) {
     super({

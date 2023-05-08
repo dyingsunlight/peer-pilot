@@ -1,5 +1,5 @@
-import {ConnectManagerModule} from "./base"
-import {TransferManager, ConnectionManagerEvents} from "../transfer-manager"
+import {TransferManagerModule} from "./base"
+import {TransferManager, TransferManagerEvents} from "../transfer-manager"
 
 interface UserProfile {
   name: string
@@ -11,7 +11,7 @@ export enum ProfileConnectionManagerModuleEvents {
   PeerClientProfileChanged = 'PeerClientProfileChanged',
 }
 
-export class ProfileConnectionManagerModule extends ConnectManagerModule<ProfileConnectionManagerModuleEvents> {
+export class ProfileTransferManagerModule extends TransferManagerModule<ProfileConnectionManagerModuleEvents> {
   public profile = {
     name: 'My name'
   }
@@ -23,14 +23,14 @@ export class ProfileConnectionManagerModule extends ConnectManagerModule<Profile
     })
 
     this.setInvokeListener('get-profile', () => this.profile)
-    connectionManager.on(ConnectionManagerEvents.PeerConnecting, async ({ peerClientId }) => {
+    connectionManager.on(TransferManagerEvents.PeerConnecting, async ({ peerClientId }) => {
       this.clients[peerClientId] = {
         clientId: peerClientId,
         status: 'connecting',
       }
       this.dispatch(ProfileConnectionManagerModuleEvents.PeerClientConnecting, { client: this.clients[peerClientId] })
     })
-    connectionManager.on(ConnectionManagerEvents.PeerConnected, async ({ peerClientId }) => {
+    connectionManager.on(TransferManagerEvents.PeerConnected, async ({ peerClientId }) => {
       const profile = await this.invoke<UserProfile>({ event: 'get-profile', targetClientId: peerClientId })
       this.clients[peerClientId] = this.clients[peerClientId] || { profile: { name: ''}, status: 'disconnected' }
       this.clients[peerClientId].clientId = peerClientId
@@ -38,7 +38,7 @@ export class ProfileConnectionManagerModule extends ConnectManagerModule<Profile
       this.clients[peerClientId].status = 'connected'
       this.dispatch(ProfileConnectionManagerModuleEvents.PeerClientConnected, { client: this.clients[peerClientId] })
     })
-    connectionManager.on(ConnectionManagerEvents.PeerDisconnected, ({ peerClientId }) => {
+    connectionManager.on(TransferManagerEvents.PeerDisconnected, ({ peerClientId }) => {
       if (this.clients[peerClientId]) {
         this.clients[peerClientId].status = 'disconnected'
         this.dispatch(ProfileConnectionManagerModuleEvents.PeerClientDisconnected, { client: this.clients[peerClientId] })

@@ -41,6 +41,7 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
   const decoder = new TextDecoder()
 
   server.accept()
+  let clientMessageIndex = 0
   server.addEventListener('message', async e => {
     if (!(e.data instanceof ArrayBuffer)) {
       server.send("Error")
@@ -50,9 +51,11 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
 
 
     if (event === SocketEvents.ClientMessage) {
+      clientMessageIndex++
       const {targetClientId, payload} = JSON.parse(decoder.decode(rawBody))
       await r2.put(toMessageKey(roomId, targetClientId), "", {
         customMetadata: {
+          index: clientMessageIndex.toString(),
           sourceClientId: clientId,
           payload
         }
@@ -71,7 +74,7 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
       })
       const data = clients.objects
         .filter(client => {
-          return (Date.now() - Number(client.customMetadata.lastVisit)) < 6000
+          return (Date.now() - Number(client.customMetadata.lastVisit)) < 3000
         })
         .map(client => {
           return {
@@ -85,6 +88,9 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
   })
   let isWebSocketDisconnected = false
   server.addEventListener('close', () => {
+    isWebSocketDisconnected = true
+  })
+  server.addEventListener('error', () => {
     isWebSocketDisconnected = true
   })
   const polling = async () => {
@@ -111,17 +117,19 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
         }))
       )
       if (messages.objects.length) {
-        const result = messages.objects.map(item => {
-          return {
-            sourceClientId: item.customMetadata.sourceClientId,
-            payload: item.customMetadata.payload
-          }
-        })
+        const result = messages.objects
+          .map(item => {
+            return {
+              index: item.customMetadata.index,
+              sourceClientId: item.customMetadata.sourceClientId,
+              payload: item.customMetadata.payload
+            }
+          })
         server.send(
           encode(SocketEvents.ServerMessage, new Uint8Array([0, 0]), encoder.encode(JSON.stringify(result)))
         )
       }
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise(resolve => setTimeout(resolve, 1200))
     }
   }
   polling()

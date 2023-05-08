@@ -8,41 +8,41 @@ export type InvokeHandler = (args: InvokeArgs & { sourceClientId: string }) => a
 export type BroadcastArgs = { event: string; data?: ArrayBuffer; clientIds?: string[] }
 export type BroadcastHandler = (args: BroadcastArgs & { sourceClientId: string }) => any | Promise<void>
 
-export enum ConnectionManagerEvents {
+export enum TransferManagerEvents {
   PeerConnecting = 'PeerConnecting',
   PeerConnected = 'PeerConnected',
   PeerDisconnected = 'PeerDisconnected',
 }
-export enum ConnectionEvent {
+enum DataEventNames {
   Invoke = 'invoke',
   Broadcast = 'broadcast',
 }
 
-interface DataChannelManagerEvent {
-  name: ConnectionEvent
+interface DataCommonEvent {
+  name: DataEventNames
   args?: any
 }
-interface DataChannelManagerInvokeEvent extends DataChannelManagerEvent {
-  name: ConnectionEvent.Invoke
+interface DataInvokeEvent extends DataCommonEvent {
+  name: DataEventNames.Invoke
   args: {
     handlerId: string
     replyEvent: string
   }
 }
-interface DataChannelManagerInvokeReplyEvent extends DataChannelManagerEvent {
-  name: ConnectionEvent.Invoke
+interface DataInvokeReplyEvent extends DataCommonEvent {
+  name: DataEventNames.Invoke
   args: {
     handlerId: string
   }
 }
-interface DataChannelManagerBroadcastEvent extends DataChannelManagerEvent {
-  name: ConnectionEvent.Broadcast
+interface DataBroadcastEvent extends DataCommonEvent {
+  name: DataEventNames.Broadcast
   args: {
     event: string
   }
 }
 
-export class TransferManager extends Emitter<ConnectionManagerEvents> {
+export class TransferManager extends Emitter<TransferManagerEvents> {
   public connections: Record<string, { dataChannelsManager: DataChannelsManager; peerConnection: RTCPeerConnection }> = {}
   public readonly clientId = ''
   private broadcaster = new Emitter()
@@ -54,7 +54,9 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
 
   async addPeerConnection(args: { peerConnection: RTCPeerConnection; peerClientId: string }) {
     const { peerConnection, peerClientId } = args
-
+    peerConnection.addEventListener("icecandidateerror", (err) => {
+      console.error(err)
+    })
     if (this.connections[peerClientId]) {
       await this.removePeerConnection({ peerClientId })
     }
@@ -66,7 +68,7 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
       dataChannelsManager,
       peerConnection,
     }
-    this.dispatch(ConnectionManagerEvents.PeerConnecting, { peerClientId })
+    this.dispatch(TransferManagerEvents.PeerConnecting, { peerClientId })
     const isConnected = await new Promise<boolean>(resolve => {
       const checkConnectionState = () => {
         if (peerConnection.connectionState === 'connecting' || peerConnection.connectionState === 'new') {
@@ -100,8 +102,8 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
           const [eventBuffer, payload]: Uint8Array[] = splitBuffer(new Uint8Array(data))
           const event = JSON.parse(new TextDecoder().decode(eventBuffer))
           // @ts-ignore
-          if (event.name === ConnectionEvent.Invoke) {
-            const e = event as DataChannelManagerInvokeEvent
+          if (event.name === DataEventNames.Invoke) {
+            const e = event as DataInvokeEvent
             if (!this.invokeHandlers[e.args.handlerId]) {
               // console.log('Invoke Event has been ignored due to handler not found: ' + JSON.stringify(e, null, 2))
               return
@@ -114,12 +116,12 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
                 data: payload?.buffer,
               })) || null
 
-            const eventBuffer = new TextEncoder().encode(JSON.stringify(        {
-              name: ConnectionEvent.Invoke,
+            const eventBuffer = new TextEncoder().encode(JSON.stringify({
+              name: DataEventNames.Invoke,
               args: {
                 handlerId: e.args.replyEvent,
               },
-            } as DataChannelManagerInvokeEvent))
+            } as DataInvokeReplyEvent))
             await dataChannel
               .send(joinBuffer([
                 eventBuffer,
@@ -131,7 +133,7 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
                 console.error(err)
               })
           }
-          if (event.name === ConnectionEvent.Broadcast) {
+          if (event.name === DataEventNames.Broadcast) {
             this.broadcaster.dispatch(event.args.event, {
               event: event.args.event,
               sourceClientId: peerClientId,
@@ -148,7 +150,7 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
         }
       }
       peerConnection.addEventListener('connectionstatechange', onConnectionstatechange)
-      this.dispatch(ConnectionManagerEvents.PeerConnected, { peerClientId: peerClientId })
+      this.dispatch(TransferManagerEvents.PeerConnected, { peerClientId: peerClientId })
       return true
     } else {
       await this.removePeerConnection({ peerClientId })
@@ -159,7 +161,7 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
     const { peerClientId } = args
     const connection = this.connections[peerClientId]
     if (connection) {
-      this.dispatch(ConnectionManagerEvents.PeerDisconnected, { peerClientId: peerClientId })
+      this.dispatch(TransferManagerEvents.PeerDisconnected, { peerClientId: peerClientId })
       connection.dataChannelsManager.disconnect()
       connection.peerConnection.close()
       delete this.connections[peerClientId]
@@ -193,19 +195,19 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
       dataChannelsManager.on(DataChannelEvents.ReceivedData, args => {
         const { data } = args
         const [eventBuffer, payload]: Uint8Array[] = splitBuffer(data)
-        const event = JSON.parse(new TextDecoder().decode(eventBuffer)) as DataChannelManagerInvokeEvent
-        if (event.name === ConnectionEvent.Invoke && event.args.handlerId === replyEvent) {
+        const event = JSON.parse(new TextDecoder().decode(eventBuffer)) as DataInvokeEvent
+        if (event.name === DataEventNames.Invoke && event.args.handlerId === replyEvent) {
           resolve(payload.buffer)
         }
       })
     })
     const eventBuffer = new TextEncoder().encode(JSON.stringify(        {
-      name: ConnectionEvent.Invoke,
+      name: DataEventNames.Invoke,
       args: {
         handlerId: event,
         replyEvent,
       },
-    } as DataChannelManagerInvokeEvent))
+    } as DataInvokeEvent))
     await dataChannelsManager.send(joinBuffer([
       eventBuffer,
       data
@@ -222,11 +224,11 @@ export class TransferManager extends Emitter<ConnectionManagerEvents> {
   async broadcast(args: BroadcastArgs) {
     const { data, clientIds = Object.keys(this.connections) } = args
     const eventBuffer = new TextEncoder().encode(JSON.stringify({
-      name: ConnectionEvent.Broadcast,
+      name: DataEventNames.Broadcast,
       args: {
         ...args,
       },
-    } as DataChannelManagerBroadcastEvent))
+    } as DataBroadcastEvent))
     await Promise.all(
       clientIds
         .filter(clientId => {
