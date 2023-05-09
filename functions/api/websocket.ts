@@ -129,7 +129,7 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
           encode(SocketEvents.ServerMessage, new Uint8Array([0, 0]), encoder.encode(JSON.stringify(result)))
         )
       }
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 800))
     }
   }
   polling()
