@@ -71,7 +71,7 @@ export class SignalingClient extends Emitter {
         return async () => {
           const rtcPeerConnection = new RTCPeerConnection({
             iceServers: presetIceServers,
-            iceTransportPolicy: 'relay',
+            // iceTransportPolicy: 'relay',
           })
           this.transferManager.addPeerConnection({
             peerClientId: client.clientId,
@@ -142,7 +142,7 @@ export class SignalingClient extends Emitter {
           console.log('Received offer from ' + message.sourceClientId)
           const connection = new RTCPeerConnection({
             iceServers: presetIceServers,
-            iceTransportPolicy: 'relay',
+            // iceTransportPolicy: 'relay',
           })
           this.transferManager.addPeerConnection({
             peerClientId: message.sourceClientId,
