@@ -5,7 +5,6 @@ specifiers:
   '@nuxtjs/tailwindcss': ^6.6.7
   '@types/file-saver': ^2.0.5
   '@types/wicg-file-system-access': ^2020.9.6
-  crypto-js: ^4.1.1
   daisyui: ^2.51.6
   detect-browser: ^5.3.0
   file-saver: ^2.0.5
@@ -22,7 +21,6 @@ dependencies:
   '@nuxtjs/tailwindcss': 6.6.7_ts-node@10.9.1
   '@types/file-saver': 2.0.5
   '@types/wicg-file-system-access': 2020.9.6
-  crypto-js: 4.1.1
   daisyui: 2.51.6_ts-node@10.9.1
   detect-browser: 5.3.0
   file-saver: 2.0.5
@@ -2334,10 +2332,6 @@ packages:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
-    dev: false
-
-  /crypto-js/4.1.1:
-    resolution: {integrity: sha512-o2JlM7ydqd3Qk9CA0L4NL6mTzU2sdx96a+oOfPu8Mkl/PK51vSyoi8/rQ8NknZtk44vq15lmhAj9CIAGwgeWKw==}
     dev: false
 
   /css-declaration-sorter/6.4.0_postcss@8.4.23:

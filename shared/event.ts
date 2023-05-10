@@ -24,6 +24,11 @@ export const decode = (incomingData: ArrayBuffer) => {
   }
 }
 
-export const encode = (event: SocketEvents, responseToken: Uint8Array, payload?: ArrayBuffer|Uint8Array) => {
-  return join(new Uint8Array([event]), responseToken, payload || new ArrayBuffer(0))
+const textEncoder = new TextEncoder()
+export const encode = (event: SocketEvents, responseToken: Uint8Array, payload: ArrayBuffer|Uint8Array|object = new ArrayBuffer(0)) => {
+  if (payload && !(payload instanceof ArrayBuffer) && !(payload instanceof Uint8Array)) {
+    payload = textEncoder.encode(JSON.stringify(payload))
+  }
+  return join(new Uint8Array([event, ...responseToken]), payload as ArrayBuffer)
 }
+

@@ -2,7 +2,7 @@
 import 'webrtc-adapter'
 import AppAvatar from './components/avatar.vue'
 import {computed, onMounted, ref} from 'vue'
-import {CloudflareSignalingClient, CloudflareSignalingClientEvents} from "./cloudflare-signaling-client"
+import {SignalingClient, SignalingClientEvents} from "./signaling-client.ts"
 import { useRuntimeConfig } from "nuxt/app"
 import { userTransfer } from "./user-transfer"
 import { useState } from "./use-state"
@@ -10,7 +10,7 @@ import { generateAvatarDataURI } from '../shared/avatar'
 import {getNameColor} from "../shared/naming"
 import { useDropSend } from './use-drop-send'
 
-let signalingClient: CloudflareSignalingClient|undefined
+let signalingClient: SignalingClient|undefined
 const clientId = Math.random().toString(36).slice(2)
 const clientSecret = Math.random().toString(36).slice(2)
 
@@ -51,18 +51,18 @@ const start = async () => {
   }
   isConnecting.value = true
   try {
-    signalingClient = new CloudflareSignalingClient({
-      endpoint: useRuntimeConfig().mode === 'development' ? 'ws://localhost:8788/api/websocket' : `wss://${window.location.host}/api/websocket`,
+    signalingClient = new SignalingClient({
+      endpoint: useRuntimeConfig().mode === 'development' ? `ws://${window.location.hostname}:8788/api/websocket` : `wss://${window.location.host}/api/websocket`,
       roomId: roomId.value,
       clientId,
       clientSecret,
       transferManager: transferManager
     })
-    const offDisconnectEvent = signalingClient.on(CloudflareSignalingClientEvents.ServerDisconnected, () => {
+    const offDisconnectEvent = signalingClient.on(SignalingClientEvents.ServerDisconnected, () => {
       isConnected.value = false
       offDisconnectEvent()
     })
-    const offConnectedEvent = signalingClient.on(CloudflareSignalingClientEvents.ServerConnected, () => {
+    const offConnectedEvent = signalingClient.on(SignalingClientEvents.ServerConnected, () => {
       isConnected.value = true
       offConnectedEvent()
     })

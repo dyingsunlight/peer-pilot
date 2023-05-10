@@ -12,12 +12,12 @@ interface PeerClient {
   userData: string
 }
 
-export enum CloudflareSignalingClientEvents {
+export enum SignalingClientEvents {
   ServerConnected = 'ServerConnected',
   ServerDisconnected = 'ServerDisconnected',
 }
 
-export class CloudflareSignalingClient extends Emitter {
+export class SignalingClient extends Emitter {
   #websocket?: WebSocket
 
   readonly clientId: string
@@ -43,7 +43,7 @@ export class CloudflareSignalingClient extends Emitter {
 
   #bindDisconnectedHandler = this.#onDisconnected.bind(this)
   async #onDisconnected() {
-    this.dispatch(CloudflareSignalingClientEvents.ServerDisconnected)
+    this.dispatch(SignalingClientEvents.ServerDisconnected)
     await new Promise(resolve => setTimeout(resolve, 3000))
   }
   async connect() {
@@ -57,7 +57,7 @@ export class CloudflareSignalingClient extends Emitter {
     websocket.addEventListener('close', this.#bindDisconnectedHandler)
     websocket.binaryType = 'arraybuffer'
     await new Promise(resolve => websocket.addEventListener('open', resolve))
-    this.dispatch(CloudflareSignalingClientEvents.ServerConnected)
+    this.dispatch(SignalingClientEvents.ServerConnected)
     this.#websocket = websocket
   }
 
@@ -71,7 +71,7 @@ export class CloudflareSignalingClient extends Emitter {
         return async () => {
           const rtcPeerConnection = new RTCPeerConnection({
             iceServers: presetIceServers,
-            // iceTransportPolicy: 'relay',
+            iceTransportPolicy: 'relay',
           })
           this.transferManager.addPeerConnection({
             peerClientId: client.clientId,
@@ -142,7 +142,7 @@ export class CloudflareSignalingClient extends Emitter {
           console.log('Received offer from ' + message.sourceClientId)
           const connection = new RTCPeerConnection({
             iceServers: presetIceServers,
-            // iceTransportPolicy: 'relay',
+            iceTransportPolicy: 'relay',
           })
           this.transferManager.addPeerConnection({
             peerClientId: message.sourceClientId,
