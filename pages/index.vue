@@ -52,7 +52,7 @@ const start = async () => {
   isConnecting.value = true
   try {
     signalingClient = new SignalingClient({
-      endpoint: useRuntimeConfig().mode === 'development' ? `ws://${window.location.hostname}:8788/api/websocket` : `wss://${window.location.host}/api/websocket`,
+      endpoint: useRuntimeConfig().mode === 'development' ? `ws://${window.location.hostname}:8788/api/websocket` : `wss://peer-pilot.deno.dev/api/websocket`,
       roomId: roomId.value,
       clientId,
       clientSecret,
