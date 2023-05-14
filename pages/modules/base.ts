@@ -1,10 +1,10 @@
-import {TransferManager, BroadcastArgs, BroadcastHandler} from "../transfer-manager";
+import {TransferManager, BroadcastArgs, BroadcastHandler, RequestProgressHandler, ResponseProgressHandler} from "../transfer-manager";
 import { revertFromBuffer, convertToBuffer } from "../../shared/buffer-utils";
 import {Emitter} from "../../shared/emitter";
 
 type Transferable = ArrayBuffer | object | string | number | boolean
 
-type ConnectManagerModuleInvokeArgs = { event: string; data?: Transferable; targetClientId: string }
+type ConnectManagerModuleInvokeArgs = { event: string; data?: Transferable; targetClientId: string; onRequestProgress?: RequestProgressHandler; onResponseProgress?: ResponseProgressHandler}
 type ConnectManagerModuleInvokeHandler = (args: ConnectManagerModuleInvokeArgs & { sourceClientId: string }) => any | Promise<Transferable|void>
 
 type ConnectManagerModuleBroadcastArgs = { event: string; data?: Transferable; clientIds?: string[] }
@@ -15,15 +15,15 @@ export class TransferManagerModule<E = string> extends Emitter<E> {
   readonly connectionManager: TransferManager
   constructor(args: {
     namespace: string
-    connectionManager: TransferManager
+    transferManager: TransferManager
   }) {
     super()
-    const { namespace, connectionManager } = args
+    const { namespace, transferManager } = args
     this.namespace = namespace
-    this.connectionManager = connectionManager
+    this.connectionManager = transferManager
   }
 
-  async invoke(args: { event: string; data?: ArrayBuffer | object | string | number | boolean; targetClientId: string }) {
+  async invoke(args: ConnectManagerModuleInvokeArgs) {
     const { data, event } = args
     // @ts-ignore
     const result = await this.connectionManager.invoke({
@@ -34,12 +34,12 @@ export class TransferManagerModule<E = string> extends Emitter<E> {
     return result instanceof ArrayBuffer ? revertFromBuffer(result) : result
   }
 
-  setInvokeListener(event: string, handler: ConnectManagerModuleInvokeHandler) {
+  setInvokeListener(event: string, handler: ConnectManagerModuleInvokeHandler, onRequestProgress?: RequestProgressHandler) {
     this.connectionManager.setInvokeListener(`${this.namespace}/${event}`, async (args) => {
       const data = args.data instanceof ArrayBuffer ? revertFromBuffer(args.data) : undefined
       const result = await handler({ ... args, data })
       return result === undefined || null ? result : convertToBuffer(result)
-    })
+    }, onRequestProgress)
   }
   deleteInvokeListener(event: string) {
     this.connectionManager.deleteInvokeListener(`${this.namespace}/${event}`)

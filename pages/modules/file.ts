@@ -3,7 +3,8 @@ import {TransferManager} from "../transfer-manager"
 
 let invokeIndex = 0
 export enum FileManagerModuleEvents {
-  File = 'File'
+  File = 'File',
+  Progress = 'Progress'
 }
 export class FileTransferManagerModule extends TransferManagerModule {
 
@@ -11,7 +12,7 @@ export class FileTransferManagerModule extends TransferManagerModule {
   constructor(connectionManager: TransferManager) {
     super({
       namespace: 'file',
-      connectionManager,
+      transferManager: connectionManager,
     })
     this.addBroadcastListener('file-metadata', async ({ data, sourceClientId }) => {
       const { filename, size, secret, expiryTime } = data
@@ -23,8 +24,7 @@ export class FileTransferManagerModule extends TransferManagerModule {
     })
   }
 
-
-  async send(args: { file: File, timeout?: number, clientIds?: string[] } ) {
+  async send(args: { file: File, timeout?: number, clientIds?: string[] }) {
     const { file, timeout = 30000, clientIds } = args
     const secret = Math.random().toString()
     await this.broadcast({
@@ -37,9 +37,12 @@ export class FileTransferManagerModule extends TransferManagerModule {
       },
       clientIds
     })
-    this.setInvokeListener(secret, () => {
-      // todo use stream transfer
-      return file.arrayBuffer()
+    this.setInvokeListener(secret, () => file.arrayBuffer(), (args) => {
+      this.dispatch(FileManagerModuleEvents.Progress, {
+        filename: file.name,
+        fileSize: file.size,
+        ...args,
+      })
     })
     await new Promise(resolve => setTimeout(resolve, timeout)).then(() => {
       this.deleteInvokeListener(secret)

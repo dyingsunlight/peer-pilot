@@ -1,8 +1,9 @@
-export enum SocketEvents {
+export enum ClientWebsocketEvents {
   Response = 0,
-  ClientMessage = 1,
+  ToPeerClientMessage = 1,
   ListClients = 2,
-  ServerMessage = 3,
+  FromPeerClientMessage = 3,
+  Heartbeat = 4
 }
 
 const join = (...buffers: (ArrayBuffer|Uint8Array)[]) => {
@@ -25,7 +26,7 @@ export const decode = (incomingData: ArrayBuffer) => {
 }
 
 const textEncoder = new TextEncoder()
-export const encode = (event: SocketEvents, responseToken: Uint8Array, payload: ArrayBuffer|Uint8Array|object = new ArrayBuffer(0)) => {
+export const encode = (event: number, responseToken: Uint8Array = new Uint8Array([0, 0]), payload: ArrayBuffer|Uint8Array|object = new ArrayBuffer(0)) => {
   if (payload && !(payload instanceof ArrayBuffer) && !(payload instanceof Uint8Array)) {
     payload = textEncoder.encode(JSON.stringify(payload))
   }

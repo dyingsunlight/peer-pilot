@@ -5,7 +5,8 @@ const DataChannelReliableLabel = 'DataChannelReliable'
 
 export enum DataChannelEvents {
   ReceivedData = 'ReceivedData',
-  ReceivedChunk = 'ReceivedChunk'
+  ReceivedChunk = 'ReceivedChunk',
+  Enqueue = 'Enqueue'
 }
 
 export class DataChannelsManager extends Emitter<DataChannelEvents> {
@@ -92,27 +93,33 @@ export class DataChannelsManager extends Emitter<DataChannelEvents> {
     channel.binaryType = 'arraybuffer'
     channel.bufferedAmountLowThreshold = 65535
     channel.addEventListener('message', (e: MessageEvent) => {
-      const { id, index, length } = DataChunk.getChunkMetadata(e.data)
-
+      const { id: dataId, index, length, latency } = DataChunk.getChunkMetadata(e.data)
       const group = this.receivingBuffers[id] || []
       this.receivingBuffers[id] = group
       group.push(e.data)
-      // this.dispatch(DataChannelEvents.ReceivedChunk, {
-      //   id,
-      //   index,
-      //   length,
-      //   receivedSize: group.reduce((sum, chunk) => chunk.byteLength + sum, 0),
-      //   estimateSize: length * e.data.byteLength
-      // })
+      this.dispatch(DataChannelEvents.ReceivedChunk, {
+        id: dataId,
+        index,
+        length,
+        latency,
+        receivedSize: group.reduce((sum, chunk) => chunk.byteLength + sum, 0),
+        estimateSize: length * e.data.byteLength
+      })
       if (index === length - 1) {
         const combinedBuffer = DataChunk.restore(this.receivingBuffers[id])
         delete this.receivingBuffers[id]
-        this.dispatch(DataChannelEvents.ReceivedData, { data: combinedBuffer, channel: this })
+        this.dispatch(DataChannelEvents.ReceivedData, { data: combinedBuffer, channel: this, id: dataId })
       }
+    })
+    channel.addEventListener('close', () => {
+      console.error('closed', channel, this.peerConnection)
+    })
+    channel.addEventListener('error', (err) => {
+      console.error(err)
     })
   }
 
-  async send(data: ArrayBuffer) {
+  async send(data: ArrayBuffer, id?: number) {
     const channelId = await this.getScheduleChannelId()
     const channel = this.channels[channelId].channel
     const channelRecord = this.fifoResolveQueue[channelId]
@@ -127,45 +134,70 @@ export class DataChannelsManager extends Emitter<DataChannelEvents> {
       throw new Error('peerConnection.sctp not found')
     }
     const maximumMessageSize = sctp.maxMessageSize
-    const buffer = new DataChunk({ data: data, chunkSize: maximumMessageSize })
-    let bytesSent = 0
+    const buffer = new DataChunk({ data: data, chunkSize: maximumMessageSize, id })
+    const totalSize = buffer.getBytesLength()
+    let bytesSentSize = 0
     let isNetworkError = false
-    this.channels[channelId].pendingBufferAmount += buffer.getBytesLength()
+    this.channels[channelId].pendingBufferAmount += totalSize
+    const onDataChannelErrorHandler = () => {
+      isNetworkError = true
+    }
+    channel.addEventListener('error', onDataChannelErrorHandler)
+    channel.addEventListener('close', onDataChannelErrorHandler)
     while (!buffer.isEnd()) {
       const chunk = buffer.take()
       try {
-        await channel.send(chunk)
+        channel.send(chunk)
         if (channel.bufferedAmount > channel.bufferedAmountLowThreshold) {
-          await new Promise((resolve) => {
+          await new Promise<any>((resolve) => {
             const resolver = () => {
               resolve()
               channel.removeEventListener("bufferedamountlow", resolver)
             }
-            channel.addEventListener("bufferedamountlow", resolve);
+            channel.addEventListener("bufferedamountlow", resolve)
+          })
+          // MARK: This event are not means the 'data chunk' are really sent.
+          // It's only enqueue to buffer will be sent soon.
+          this.dispatch(DataChannelEvents.Enqueue, {
+            id: buffer.id,
+            index: buffer.takenIndex,
+            length: buffer.chunkAmount,
+            sentSize: bytesSentSize,
+            totalSize: totalSize,
           })
         }
-        bytesSent += chunk.byteLength
+        bytesSentSize += chunk.byteLength
         this.channels[channelId].pendingBufferAmount -= chunk.byteLength
       } catch (err) {
         // Not throw the error immediately because some clean up must be done first.
         isNetworkError = true
         console.error(err)
       }
-
       // Transfer error occur
       if (isNetworkError) {
         // reset payload stress
-        this.channels[channelId].pendingBufferAmount = this.channels[channelId].pendingBufferAmount - (buffer.getBytesLength() - bytesSent)
+        this.channels[channelId].pendingBufferAmount = this.channels[channelId].pendingBufferAmount - (buffer.getBytesLength() - bytesSentSize)
         break
       }
     }
     channelRecord.isSending = false
-
+    channel.removeEventListener('error', onDataChannelErrorHandler)
+    channel.removeEventListener('close', onDataChannelErrorHandler)
     const [resolve, reject] = channelRecord.queue.shift() || []
     if (isNetworkError) {
       reject("Network error")
       throw new Error('Network error!')
     }
+    while (channel.bufferedAmount) {
+      await new Promise(resolve => window.requestAnimationFrame(resolve))
+    }
+    this.dispatch(DataChannelEvents.Enqueue, {
+      id: buffer.id,
+      index: buffer.chunkAmount - 1,
+      length: buffer.chunkAmount,
+      sentSize: bytesSentSize,
+      totalSize: totalSize,
+    })
     if (resolve) {
       resolve()
     }

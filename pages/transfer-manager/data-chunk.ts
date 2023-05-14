@@ -1,9 +1,5 @@
 const DataChannelPayloadBufferDefaultSize = 65535
-const DataChannelPayloadBufferMetadataSize = 12
-
-let id = 0
-const generateId = () => id++
-
+const DataChannelPayloadBufferMetadataSize = 32
 export class DataChunk {
   public takenIndex = 0
   private buffer: Uint8Array = new Uint8Array(0)
@@ -13,7 +9,7 @@ export class DataChunk {
   constructor(args: ({ data: ArrayBuffer, chunkSize?: number, id?: number })) {
     this.chunkSize = (args.chunkSize || DataChannelPayloadBufferDefaultSize) - DataChannelPayloadBufferMetadataSize
     const data = args.data
-    this.id = args.id || generateId()
+    this.id = args.id || Math.max(Math.ceil(Number.MAX_SAFE_INTEGER * Math.random()) - 1, 0)
     this.chunkAmount = Math.ceil(data.byteLength / this.chunkSize)
     this.buffer = new Uint8Array(data as ArrayBuffer)
   }
@@ -28,6 +24,9 @@ export class DataChunk {
     dataView.setUint32(0, this.id)
     dataView.setUint32(4, index)
     dataView.setUint32(8, this.chunkAmount)
+    // Uint64 needs 8 bytes
+    dataView.setBigUint64(12, BigInt(Date.now()))
+    // Next 20
     output.set(new Uint8Array(dataView.buffer), 0)
     output.set(chunk, DataChannelPayloadBufferMetadataSize)
     return output
@@ -36,11 +35,12 @@ export class DataChunk {
     return this.takenIndex * (this.chunkSize + DataChannelPayloadBufferMetadataSize) >= this.buffer.byteLength
   }
   static getChunkMetadata(buffer: ArrayBuffer) {
-    const dataView = new DataView(buffer)
+    const dataView = new DataView(buffer.slice(0, DataChannelPayloadBufferMetadataSize))
     return {
       id: dataView.getUint32(0),
       index: dataView.getUint32(4),
-      length: dataView.getUint32(8)
+      length: dataView.getUint32(8),
+      latency: Math.max(Date.now() - Number(dataView.getBigUint64(12)), 0)
     }
   }
   static restore(buffers: ArrayBuffer[]) {

@@ -22,4 +22,19 @@ export const presetIceServers = [
     username: "857bfe10cf8dac7e0cefe728",
     credential: "PIyecrdlG32R6GmG",
   },
+  {
+    urls: "turn:coturn.beside.cloud",
+    username: "peerpilot",
+    credential: "peerpilot",
+  },
+  {
+    urls: "turn:coturn.beside.cloud?transport=tcp",
+    username: "peerpilot",
+    credential: "peerpilot",
+  },
+  {
+    urls: "turn:coturn.beside.cloud?transport=udp",
+    username: "peerpilot",
+    credential: "peerpilot",
+  }
 ]

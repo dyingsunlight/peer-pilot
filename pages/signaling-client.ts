@@ -1,7 +1,7 @@
-import {decode, encode, SocketEvents} from "../shared/event"
+import {decode, encode, ClientWebsocketEvents} from "../shared/event"
 import {parallelTasks} from "../shared/parallel-tasks"
 import {Emitter} from "../shared/emitter"
-import {TransferManager, TransferManagerEvents} from './transfer-manager'
+import {TransferManager} from './transfer-manager'
 import {presetIceServers} from "./ice-server"
 
 const textDecoder = new TextDecoder()
@@ -17,7 +17,7 @@ export enum SignalingClientEvents {
   ServerDisconnected = 'ServerDisconnected',
 }
 
-export class SignalingClient extends Emitter {
+export class SignalingClient extends Emitter<SignalingClientEvents> {
   #websocket?: WebSocket
 
   readonly clientId: string
@@ -62,7 +62,7 @@ export class SignalingClient extends Emitter {
   }
 
   async updatePeerConnections() {
-    const clients = await this.#invoke<PeerClient[]>(SocketEvents.ListClients)
+    const clients = await this.#invoke<PeerClient[]>(ClientWebsocketEvents.ListClients)
     // const rtcPeerConnections = this.connectionManager.connections
     const tasks = clients
       .filter(client =>
@@ -79,7 +79,7 @@ export class SignalingClient extends Emitter {
           })
           const offer = await rtcPeerConnection.createOffer()
           await rtcPeerConnection.setLocalDescription(offer)
-          await this.#invoke(SocketEvents.ClientMessage, {
+          await this.#invoke(ClientWebsocketEvents.ToPeerClientMessage, {
             targetClientId: client.clientId,
             payload: JSON.stringify({
               clientId: this.clientId,
@@ -89,11 +89,11 @@ export class SignalingClient extends Emitter {
           })
         }
       })
-    await parallelTasks(tasks)
+    await parallelTasks(tasks, 12)
     return clients
   }
 
-  #invoke<T = any>(event: SocketEvents, data?: object) {
+  #invoke<T = any>(event: ClientWebsocketEvents, data?: object) {
     return new Promise<T>(resolve => {
       const websocket = this.#websocket
       const token = new Uint8Array([Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)])
@@ -104,7 +104,7 @@ export class SignalingClient extends Emitter {
           return
         }
         const { event, responseToken, rawBody } = decode(e.data)
-        if (event === SocketEvents.Response &&
+        if (event === ClientWebsocketEvents.Response &&
           responseToken[0] === token[0] &&
           responseToken[1] === token[1]
         ) {
@@ -122,8 +122,11 @@ export class SignalingClient extends Emitter {
       console.error('error invalid data.', e)
       return
     }
-    const { event, rawBody } = decode(e.data)
-    if (event === SocketEvents.ServerMessage) {
+    const { event, responseToken, rawBody } = decode(e.data)
+    if (event === ClientWebsocketEvents.Ping) {
+      this.#websocket.send(encode(ClientWebsocketEvents.Response, responseToken))
+    }
+    if (event === ClientWebsocketEvents.FromPeerClientMessage) {
       const messages = JSON.parse(textDecoder.decode(rawBody)).map(item => {
         item.payload = JSON.parse(item.payload)
         return item
@@ -151,7 +154,7 @@ export class SignalingClient extends Emitter {
           await connection.setRemoteDescription(message.payload.offer)
           connection.addEventListener('icecandidate', async (e) => {
             console.log('Sending icecandidate to ' + message.sourceClientId)
-            await this.#invoke(SocketEvents.ClientMessage,{
+            await this.#invoke(ClientWebsocketEvents.ToPeerClientMessage,{
               targetClientId: message.sourceClientId,
               payload: JSON.stringify({
                 clientId: this.clientId,
@@ -163,7 +166,7 @@ export class SignalingClient extends Emitter {
           const answer = await connection.createAnswer()
           await connection.setLocalDescription(answer)
           console.log('Sending answer to ' + message.sourceClientId)
-          await this.#invoke(SocketEvents.ClientMessage, {
+          await this.#invoke(ClientWebsocketEvents.ToPeerClientMessage, {
             targetClientId: message.sourceClientId,
             payload: JSON.stringify({
               clientId: this.clientId,
@@ -177,7 +180,7 @@ export class SignalingClient extends Emitter {
           const peerConnection =  this.transferManager.connections[message.sourceClientId]?.peerConnection
           peerConnection.addEventListener('icecandidate', async(e) => {
             console.log('Sending icecandidate to ' + message.sourceClientId)
-            await this.#invoke(SocketEvents.ClientMessage, {
+            await this.#invoke(ClientWebsocketEvents.ToPeerClientMessage, {
               targetClientId: message.sourceClientId,
               payload: JSON.stringify({
                 clientId: this.clientId,

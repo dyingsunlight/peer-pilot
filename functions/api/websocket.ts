@@ -1,5 +1,5 @@
 import {EventContext, R2Bucket, ServiceWorkerGlobalScope} from '@cloudflare/workers-types'
-import {decode, encode, SocketEvents} from '../../shared/event'
+import {decode, encode, ClientWebsocketEvents} from '../../shared/event'
 
 const toClientsKey = (roomId: string, clientId?: string) => `room/${roomId}/clients/${clientId || ""}`
 const toMessageKey = (roomId: string, targetClientId: string, isPrefixOnly?: boolean) =>
@@ -50,7 +50,7 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
     const { event, responseToken, rawBody} = decode(e.data)
 
 
-    if (event === SocketEvents.ClientMessage) {
+    if (event === ClientWebsocketEvents.ToPeerClientMessage) {
       clientMessageIndex++
       const {targetClientId, payload} = JSON.parse(decoder.decode(rawBody))
       await r2.put(toMessageKey(roomId, targetClientId), "", {
@@ -61,12 +61,12 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
         }
       })
       server.send(
-        encode(SocketEvents.Response, responseToken, encoder.encode(`{ "status": 200 }`))
+        encode(ClientWebsocketEvents.Response, responseToken, encoder.encode(`{ "status": 200 }`))
       )
     }
 
 
-    if (event === SocketEvents.ListClients) {
+    if (event === ClientWebsocketEvents.ListClients) {
       // @ts-ignore
       const clients = await r2.list({
         prefix: toClientsKey(roomId),
@@ -82,7 +82,7 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
         }
       })
       server.send(
-        encode(SocketEvents.Response, responseToken, encoder.encode(JSON.stringify(data)))
+        encode(ClientWebsocketEvents.Response, responseToken, encoder.encode(JSON.stringify(data)))
       )
     }
   })
@@ -126,7 +126,7 @@ export const onRequest = async (ctx: EventContext<Env, any,  Record<string, unkn
             }
           })
         server.send(
-          encode(SocketEvents.ServerMessage, new Uint8Array([0, 0]), encoder.encode(JSON.stringify(result)))
+          encode(ClientWebsocketEvents.FromPeerClientMessage, new Uint8Array([0, 0]), encoder.encode(JSON.stringify(result)))
         )
       }
       await new Promise(resolve => setTimeout(resolve, 500))

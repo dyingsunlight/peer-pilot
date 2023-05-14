@@ -6,7 +6,7 @@ export class MessageTransferManagerModule extends TransferManagerModule {
   constructor(connectionManager: TransferManager) {
     super({
       namespace: 'message',
-      connectionManager,
+      transferManager: connectionManager,
     })
     this.addBroadcastListener('message', ({ data, sourceClientId }) => {
       console.log("Message: ", data, sourceClientId)

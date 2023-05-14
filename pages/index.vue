@@ -15,6 +15,7 @@ const clientId = Math.random().toString(36).slice(2)
 const clientSecret = Math.random().toString(36).slice(2)
 
 const {
+  // sendingRecords,
   clients,
   transferManager,
   profileModule,
@@ -33,6 +34,7 @@ const {
 const sharedUrlInput = ref<HTMLInputElement>()
 const isNameDialogOpened = ref<boolean>(false)
 const colors = computed(() => getNameColor(clientName.value))
+const activeClients = computed(() => clients.value.filter(client => client.status !== 'disconnected'))
 
 const handleCloseRenameDialog = () => isNameDialogOpened.value = false
 const handleOpenRenameDialog = () => isNameDialogOpened.value = true
@@ -88,6 +90,8 @@ const handlePreDropEnter = (e) => {
 
 onMounted(() => {
   start()
+  // window.transferManager = transferManager
+  // window.profileModule = profileModule
 })
 
 </script>
@@ -97,12 +101,12 @@ onMounted(() => {
        @dragenter="handlePreDropEnter">
     <div class="flex flex-col items-center		">
       <img  style="width: 64px" :src="generateAvatarDataURI({ name: clientName, backgroundColor: colors.backgroundColor, foregroundColor: colors.foregroundColor})">
-      <span class="text-xl text-black" @click="handleOpenRenameDialog" style="cursor: pointer"> {{ clientName }}</span>
+      <span class="text-xl text-black mt-2" @click="handleOpenRenameDialog" style="cursor: pointer"> {{ clientName }}</span>
     </div>
     <template v-if="isConnected">
       <div class="divider"> Devices </div>
       <ul>
-        <li v-for="client in clients" :key="client.clientId"
+        <li v-for="client in activeClients" :key="client.clientId"
             :style="{
               filter: `grayscale(${client.status === 'connected' ? 0 : 1})`,
               opacity: client.status === 'connected' ? 1 : 0.5
@@ -113,12 +117,17 @@ onMounted(() => {
           <p class="ml-2">
             {{ client.name }}
           </p>
-          <p v-if="client.status !== 'connected'">
-            - {{ client.status }}
-          </p>
-          <button v-if="client.status === 'connected'" @click="handleSelectAndSendFile(client.clientId)" class="btn btn-sm"
+          <div v-if="client.connectionType" class="badge badge-info ml-2">
+            {{ client.connectionType }}
+          </div>
+          <div class="badge badge-success ml-2">
+            {{ client.status }}
+          </div>
+          <button v-if="client.status === 'connected'"
+                  @click="handleSelectAndSendFile(client.clientId)"
+                  class="btn btn-sm"
                   style="margin-left: 8px">
-            Select
+            Send File
           </button>
         </li>
       </ul>
@@ -147,7 +156,7 @@ onMounted(() => {
                @click="handleCopy"
                :value="sharedUrl"
         />
-        <span class="btn btn-ghost ml-2" @click="handleCopy">
+        <span class="btn btn-primary ml-2" @click="handleCopy">
             Copy
           </span>
       </div>
